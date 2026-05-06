@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from routes.describe import describe_bp
 from routes.recommend import recommend_bp
 from routes.generate_report import generate_report_bp
+from routes.stream_report import stream_report_bp
 import logging
 
 app = Flask(__name__)
@@ -16,6 +17,7 @@ logging.basicConfig(
 app.register_blueprint(describe_bp)
 app.register_blueprint(recommend_bp)
 app.register_blueprint(generate_report_bp)
+app.register_blueprint(stream_report_bp)
 
 # Health check
 @app.route("/health", methods=["GET"])
