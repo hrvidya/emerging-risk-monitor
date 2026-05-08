@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, g
 from datetime import datetime
 import logging
+import time
 
 from routes.describe import describe_bp
 from routes.recommend import recommend_bp
@@ -9,7 +10,19 @@ from routes.stream_report import stream_report_bp
 from routes.analyse_document import analyse_document_bp
 from routes.batch_process import batch_process_bp
 
+from services.runtime_metrics import (
+    record_latency_ms,
+    get_runtime_stats
+)
+
+from services.model_loader import get_model
+
 app = Flask(__name__)
+
+# -------------------------
+# Preload embedding model
+# -------------------------
+embedding_model = get_model()
 
 # -------------------------
 # Logging setup
@@ -29,6 +42,14 @@ def get_uptime():
     return str(
         int((datetime.utcnow() - start_time).total_seconds())
     ) + " seconds"
+
+
+# -------------------------
+# Request timing
+# -------------------------
+@app.before_request
+def start_timer():
+    g.start_time = time.time()
 
 
 # -------------------------
@@ -55,6 +76,14 @@ def health():
 
 
 # -------------------------
+# Runtime metrics API
+# -------------------------
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    return jsonify(get_runtime_stats())
+
+
+# -------------------------
 # Home route
 # -------------------------
 @app.route('/')
@@ -63,12 +92,16 @@ def home():
 
 
 # -------------------------
-# Security headers
+# Security headers + metrics
 # -------------------------
 @app.after_request
 def add_headers(response):
+    latency = (time.time() - g.start_time) * 1000
+    record_latency_ms(latency)
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
+
     return response
 
 
